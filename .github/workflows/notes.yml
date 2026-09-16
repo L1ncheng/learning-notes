@@ -1,0 +1,61 @@
+name: 每日笔记与索引
+
+on:
+  schedule:
+    # 16:00 UTC == 北京时间次日 00:00
+    - cron: '0 16 * * *'
+  push:
+    branches: [main]
+    paths:
+      - 'notes/**'
+      - 'scripts/**'
+      - '.github/workflows/notes.yml'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: '要创建的日期（YYYY-MM-DD / yesterday），留空表示今天'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: notes-index
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: 生成笔记与索引
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Shanghai
+
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 准备 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 创建当天笔记
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: node scripts/new-note.mjs "${{ inputs.date }}" --no-index
+
+      - name: 重建索引
+        run: node scripts/build-index.mjs
+
+      - name: 提交变更
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "没有需要提交的变更。"
+            exit 0
+          fi
+          git commit -m "chore: 更新学习日志与索引 ($(date +%F))"
+          git push
