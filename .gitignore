@@ -13,3 +13,14 @@ desktop.ini
 *.tmp
 *.log
 node_modules/
+
+# C++ 编译产物
+*.exe
+*.o
+*.obj
+*.out
+*.gch
+*.pdb
+*.ilk
+build/
+bin/
